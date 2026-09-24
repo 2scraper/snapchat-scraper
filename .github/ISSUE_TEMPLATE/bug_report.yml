@@ -1,0 +1,57 @@
+name: Bug report
+description: The scraper ran but the result was wrong, empty, or it crashed.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste an API key, a proxy password or a full
+        `ws://user:pass@...` endpoint into a public issue.** The engines mask
+        credentials in their own logs, but raw page dumps and the Scraper API's
+        `x-debug` header do not. Replace them with `***`.
+
+        Before filing, the README's "things that look like bugs" section
+        answers the common ones. In particular: **a hidden subscriber count is `null`, not 0, and an empty Spotlight slot is not a video.**
+
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Which engine
+      options:
+        - playwright_scraper.py
+        - puppeteer_scraper.py
+        - selenium_scraper.py
+        - scraper_api_client.py
+    validations:
+      required: true
+
+  - type: input
+    id: command
+    attributes:
+      label: The exact command
+      description: With any key, password or endpoint replaced by `***`.
+      placeholder: "python3 playwright_scraper.py --url nasa --mode spotlight"
+    validations:
+      required: true
+
+  - type: input
+    id: exit
+    attributes:
+      label: Exit code, and the sidecar's status / stop_reason
+      description: From `snapchat_profiles.meta.json` (or your --out prefix).
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what you got
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: The run's log
+      description: Credentials replaced with `***`.
+      render: text

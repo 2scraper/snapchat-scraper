@@ -1,0 +1,58 @@
+name: Site changed
+description: Snapchat changed something and this scraper no longer reads it.
+labels: ["site-change"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most common way a scraper stops working, and worth its own report
+        because the fix is different from a code bug: something on
+        `www.snapchat.com/@username` moved.
+
+        This repo reads one structured source, never the rendered page:
+        `<script id="__NEXT_DATA__">` → `props.pageProps`.
+
+        **Never paste an API key, a proxy password or a `ws://…` endpoint.**
+
+  - type: dropdown
+    id: what_broke
+    attributes:
+      label: What stopped working
+      options:
+        - 0 rows for a public account that has Spotlight or a story
+        - A real account reported as user_not_found
+        - A public account read as an ordinary one (public_profile false)
+        - Exit 3 from an address that used to work
+        - A column is null or wrong (say which)
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: What you asked for
+      description: The exact target, the exit you used (datacentre, residential, or Scraping Browser), and its country.
+      placeholder: "https://www.snapchat.com/@nasa --mode spotlight (exit: datacentre, FI)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: |
+        A capture beats a description.
+
+        `python3 -c "import snapchat_payload as S;d=S.next_data(open('dump.json').read());print(d.get('page'), sorted(d['props']['pageProps']))"`
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: >-
+        Whether it reproduces on a second engine, from a different exit, and
+        when it last worked.
