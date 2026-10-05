@@ -330,6 +330,73 @@ def _story_snaps(props: Dict[str, Any]) -> List[Dict[str, Any]]:
     return [s for s in (story.get("snapList") or []) if isinstance(s, dict)]
 
 
+# ---------------------------------------------------------------------------
+# Schema drift
+# ---------------------------------------------------------------------------
+#
+# The source is Snapchat's own page state, not a published contract, so it can
+# change shape without a version bump. A page that still renders but has lost
+# a key this parser reads produces rows whose columns are silently null, and
+# nothing about the run looks wrong — the failure a third-party audit named
+# first (2026-10-05).
+#
+# So the parser checks for the KEYS it reads, never their values. A null value
+# is a legitimate answer here (a hidden subscriber count, an account with no
+# bio, a slot that is empty); a missing key is the site having moved. Each
+# list below was read off the real captures this repo's fixtures come from,
+# and every key in it is present on every capture that should carry it.
+DRIFT_PUBLIC_PROFILE = ("username", "title", "subscriberCount",
+                        "businessProfileId", "bio", "websiteUrl",
+                        "categoryStringId", "badge", "profilePictureUrl",
+                        "hasStory", "hasCuratedHighlights",
+                        "hasSpotlightHighlights")
+DRIFT_USER_INFO = ("username",)
+DRIFT_PAGE_PROPS = ("story", "curatedHighlights", "spotlightHighlights",
+                    "spotlightStoryMetadata", "lenses")
+DRIFT_SPOTLIGHT_META = ("videoMetadata", "engagementStats")
+DRIFT_VIDEO_METADATA = ("name", "description", "uploadDateMs", "durationMs",
+                        "contentUrl")
+DRIFT_ENGAGEMENT = ("viewCount", "shareCount", "commentCount", "boostCount")
+DRIFT_SNAP = ("snapIndex", "snapId", "snapMediaType", "snapUrls",
+              "timestampInSec")
+
+
+def payload_keys_missing(props: Dict[str, Any]) -> List[str]:
+    """Keys this parser reads that the page no longer carries, as paths.
+
+    Empty on every capture this repo was built from. Non-empty means the
+    site moved a field, and the rows from this page may carry nulls that
+    are the parser's, not the account's.
+    """
+    missing = set()
+
+    def need(obj, keys, path):
+        if isinstance(obj, dict):
+            for k in keys:
+                if k not in obj:
+                    missing.add(f"{path}.{k}")
+
+    kind, info = account(props)
+    if kind == PROFILE_PUBLIC:
+        need(info, DRIFT_PUBLIC_PROFILE, "publicProfileInfo")
+        need(props, DRIFT_PAGE_PROPS, "pageProps")
+        for _, meta in _filled_spotlights(props)[0]:
+            need(meta, DRIFT_SPOTLIGHT_META, "spotlightStoryMetadata[]")
+            need(meta.get("videoMetadata"), DRIFT_VIDEO_METADATA,
+                 "spotlightStoryMetadata[].videoMetadata")
+            need(meta.get("engagementStats"), DRIFT_ENGAGEMENT,
+                 "spotlightStoryMetadata[].engagementStats")
+        snaps = list(_story_snaps(props))
+        for coll in _highlight_collections(props):
+            snaps.extend(s for s in coll.get("snapList") or []
+                         if isinstance(s, dict))
+        for snap in snaps:
+            need(snap, DRIFT_SNAP, "snapList[]")
+    elif kind == PROFILE_USER:
+        need(info, DRIFT_USER_INFO, "userInfo")
+    return sorted(missing)
+
+
 def _profile_row(props, html, url, scraped_at, row_cls, handle):
     kind, info = account(props)
     username = (_text(info.get("username")) or handle or "").lower() or None
@@ -378,6 +445,8 @@ def _profile_row(props, html, url, scraped_at, row_cls, handle):
         has_story=_bool(info.get("hasStory")),
         has_curated_highlights=_bool(info.get("hasCuratedHighlights")),
         has_spotlight_highlights=_bool(info.get("hasSpotlightHighlights")),
+        has_more_spotlight=bool(_text(props.get("spotlightHighlightsCursor"))),
+        has_more_highlights=bool(_text(props.get("curatedHighlightsCursor"))),
         bio=_text(info.get("bio")),
         website_url=_text(info.get("websiteUrl")),
         address=_text(info.get("address")),
@@ -571,6 +640,7 @@ def parse_page(html: Any, url: str, scraped_at: str, row_cls: Any,
         "more_spotlight": bool(_text(props.get("spotlightHighlightsCursor"))),
         "more_highlights": bool(_text(props.get("curatedHighlightsCursor"))),
         "viewer_country": _text((props.get("viewerInfo") or {}).get("country")),
+        "payload_keys_missing": payload_keys_missing(props),
     }
 
     if mode == "profile":

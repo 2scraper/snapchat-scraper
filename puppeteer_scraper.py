@@ -1198,6 +1198,7 @@ def _run_profile(session_box, pw, args, pool) -> Tuple[List[Any], Dict[str, Any]
     more_beyond_page: List[str] = []
     empty_slots = 0
     countries = set()
+    drift: Dict[str, List[str]] = {}
     blocked = False
     for i, outcome in enumerate(outcomes):
         blocked = blocked or outcome.blocked
@@ -1215,6 +1216,8 @@ def _run_profile(session_box, pw, args, pool) -> Tuple[List[Any], Dict[str, Any]
         empty_slots += int(diag.get("spotlight_empty_slots") or 0)
         if diag.get("viewer_country"):
             countries.add(diag["viewer_country"])
+        for key in diag.get("payload_keys_missing") or ():
+            drift.setdefault(key, []).append(handles[i])
         # `page` is WHICH ACCOUNT of the run a row came from, so that
         # `page`+`position` is unique across a multi-account run — CLAUDE.md
         # §18 records a sibling where 60 of 119 rows claimed a position
@@ -1257,6 +1260,12 @@ def _run_profile(session_box, pw, args, pool) -> Tuple[List[Any], Dict[str, Any]
         # how a reader checks that a proxy or a Scraping Browser
         # `country-` segment did what it was asked.
         "viewer_countries": sorted(countries) or None,
+        # Keys this parser reads that a served page no longer carried, with
+        # the accounts each was missing on. Empty on every page this repo
+        # was built and tested against; non-empty means Snapchat moved a
+        # field and some columns of those accounts' rows are nulls of the
+        # parser's making, not the account's. The canary fails on it.
+        "payload_keys_missing": drift or None,
     }
     return rows, meta
 
@@ -1280,7 +1289,23 @@ class _driver_context:
         return False
 
 
+def _transport_used(args) -> str:
+    """What actually fetched the pages: "http", "browser" or "cdp".
+
+    `--transport` says what was ASKED for, and the default `auto` is not a
+    transport at all — the sidecar used to record "auto" for a run that
+    never started a browser, so a reader could not tell from it whether
+    Chromium had been involved (third-party audit, 2026-10-05). `auto`
+    switches `args.transport` to "browser" the moment it falls back, so
+    reading it after the run gives the answer.
+    """
+    if args.cdp_endpoint:
+        return "cdp"
+    return "browser" if getattr(args, "transport", "auto") == "browser" else "http"
+
+
 def scrape(args) -> int:
+    transport_requested = getattr(args, "transport", "auto")
     pool = proxy_pool_from_args(args)
     handles = _handles(args)
     if pool and args.concurrency > 1:
@@ -1310,7 +1335,12 @@ def scrape(args) -> int:
                           "blocked")}
     extra["engine"] = "puppeteer"
     extra["category"] = args.category
-    extra["transport"] = getattr(args, "transport", "auto")
+    # `engine` names the CLI that ran (which driver the browser path would
+    # use); `transport` names what actually fetched the pages. The audit
+    # asked for `engine=http` instead — but the engine is still this
+    # script, and folding the two into one field would lose which one.
+    extra["transport"] = _transport_used(args)
+    extra["transport_requested"] = transport_requested
 
     unavailable = meta.get("handles_unavailable")
     if unavailable:
@@ -1322,6 +1352,14 @@ def scrape(args) -> int:
         logger.info("%d account(s) have no public profile, so Snapchat shows "
                     "them no Spotlight and no story: %s", len(not_public),
                     ", ".join("@" + h for h in not_public))
+    drift = meta.get("payload_keys_missing")
+    if drift:
+        logger.warning("Snapchat's page no longer carries %d key(s) this "
+                       "parser reads: %s. The page was served and parsed, "
+                       "but columns read from those keys are null for the "
+                       "parser's reasons, not the account's. See "
+                       "payload_keys_missing in the sidecar.", len(drift),
+                       ", ".join(sorted(drift)))
     more = meta.get("handles_with_more_than_page")
     if more and args.mode != "profile":
         logger.info("%d account(s) have more Spotlight/highlights than their "

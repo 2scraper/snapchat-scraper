@@ -8,6 +8,45 @@ closely as a CLI toolkit can. A patch release means **fixes** — it does not
 promise that every flag's default is frozen, and where a default does change
 in one, the note leads with it.
 
+## [0.2.0] — 2026-10-05
+
+Changes from a third-party audit, each checked against a live run before it
+was accepted. Two columns are added to the profile row, which is why this
+is a minor release; no column was removed or renamed.
+
+### Added
+
+- **`has_more_spotlight` and `has_more_highlights` on the profile row**,
+  from the page's own cursors. The page lists about 25 Spotlight videos
+  and a slice of highlights; these say when the account has more, on the
+  row itself, so a row read without its sidecar still says its counts are
+  a slice.
+- **`payload_keys_missing` in the sidecar.** The parser now checks that
+  every `__NEXT_DATA__` key it reads is present, and names the ones that
+  are not, per account. A page that renders but has lost a field used to
+  produce silent nulls. Zero false positives on 20 raw captures and a live
+  page; the daily canary fails on a non-empty value.
+- **`transport` records what actually fetched the pages** (`http`,
+  `browser`, `cdp`), with `transport_requested` beside it. It used to
+  record the flag, so the default run said `auto` and never which one.
+- **CSV formula neutralisation**, lifted from rakuten-scraper: a string cell
+  beginning `=`, `+`, `-`, `@` or a control character is prefixed with `'`
+  in CSV only, and counted in `csv_cells_escaped`. It does not fire on
+  today's data (0 of 10,554 string cells, measured); it is here because
+  the text is the account owner's.
+- **A check that the three engines' shared code is identical**, so the
+  three copies cannot drift apart unnoticed.
+- CI tests the newest end of the supported range on Python 3.14 (was 3.12).
+
+### Fixed
+
+- **Output files were created owner-only (0600).** The atomic writer's
+  temporary file is 0600 and the rename kept it: nine of nine files on a
+  live run under umask 022. New files now get the umask's mode (0644
+  there). A file that already exists keeps its mode, so outputs written by
+  0.1.0 stay 0600 until you delete them once — the writer cannot tell a
+  mode someone chose from one the bug left.
+
 ## [0.1.0] — 2026-09-24
 
 First release.

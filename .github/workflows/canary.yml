@@ -119,6 +119,18 @@ jobs:
                               f"the {floor:,} floor")
               if len(r.get("sku") or "") != 36:
                   fail.append(f"@{name}: sku {r.get('sku')!r} is not a UUID")
+          # Snapchat's page state is not a published contract. A served page
+          # that has lost a key the parser reads gives silent nulls, so the
+          # parser names such keys and this fails on them by name.
+          for label, m in (("profiles", meta),):
+              if m.get("payload_keys_missing"):
+                  fail.append(f"{label}: Snapchat moved key(s) the parser "
+                              f"reads: {m['payload_keys_missing']}")
+          # The default transport is plain HTTP; a browser here means the
+          # site refused it, which is the README's central claim failing.
+          if meta.get("transport") != "http":
+              fail.append(f"transport {meta.get('transport')!r}: the default "
+                          f"run did not stay on plain HTTP")
           espn = by.get("espn")
           if espn is None or espn.get("public_profile") is not False:
               fail.append(f"@espn: expected an ordinary account row, got "
@@ -140,6 +152,9 @@ jobs:
           if bad:
               fail.append(f"spotlight: {len(bad)} row(s) without a positive "
                           f"view_count — an empty slot read as a video?")
+          if smeta.get("payload_keys_missing"):
+              fail.append(f"spotlight: Snapchat moved key(s) the parser "
+                          f"reads: {smeta['payload_keys_missing']}")
           pairs = [(r["page"], r["position"]) for r in spot]
           if len(set(pairs)) != len(pairs):
               fail.append("spotlight: page+position is not unique")

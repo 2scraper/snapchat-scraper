@@ -3,7 +3,7 @@
 [![release](https://img.shields.io/github/v/release/2scraper/snapchat-scraper?sort=semver)](https://github.com/2scraper/snapchat-scraper/releases)
 [![tests](https://github.com/2scraper/snapchat-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/2scraper/snapchat-scraper/actions/workflows/tests.yml)
 [![canary](https://github.com/2scraper/snapchat-scraper/actions/workflows/canary.yml/badge.svg)](https://github.com/2scraper/snapchat-scraper/actions/workflows/canary.yml)
-[![python](https://img.shields.io/badge/python-3.9%20%7C%203.12-blue)](pyproject.toml)
+[![python](https://img.shields.io/badge/python-3.9%20%7C%203.14-blue)](pyproject.toml)
 [![licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 [![engines](https://img.shields.io/badge/engines-Playwright%20%7C%20Selenium%20%7C%20pyppeteer%20%7C%20CDP-informational)](#engines-and-what-each-one-costs-you)
 [![runs without an account](https://img.shields.io/badge/runs%20without-an%20account-brightgreen)](#you-do-not-need-a-key-a-proxy-or-an-account)
@@ -130,9 +130,10 @@ Measured on 2026-09-24: @nasa — 757,800 subscribers, 7 Spotlight videos,
 * **At most ~25 Spotlight videos per account.** That is what a profile
   page lists. The page carries a cursor for the rest, consumed by
   Snapchat's own protobuf API, which **this repo does not implement**. The
-  sidecar names every account whose page said there was more, in
-  `handles_with_more_than_page`, so "complete" is never misread as "the
-  account's whole history".
+  profile row says so itself, in `has_more_spotlight` and
+  `has_more_highlights`, and the sidecar names every such account in
+  `handles_with_more_than_page`. `status: complete` means every account
+  asked for was answered — never "the account's whole history".
 * **An account with one row and nothing in it.** An ordinary account —
   not a Public Profile — is served as a username and a Snapcode and
   nothing else (@espn, measured). `--mode profile` emits a row with
@@ -230,7 +231,23 @@ reason, **which** accounts failed by number, `handles_unavailable`,
 `handles_without_public_profile`, `handles_with_more_than_page`,
 `spotlight_empty_slots`, and `viewer_countries` — the country Snapchat
 says the request came from, which is how you check that a proxy's or a
-Scraping Browser's `country-` segment did what you asked.
+Scraping Browser's `country-` segment did what you asked. Also:
+
+* `transport` — what actually fetched the pages (`http`, `browser` or
+  `cdp`), beside `transport_requested`. The default `auto` is HTTP until
+  the site refuses, so this is the field that says whether a browser was
+  ever involved; `engine` names the script that ran.
+* `payload_keys_missing` — keys this parser reads that a served page no
+  longer carried, with the accounts each was missing on. The source is
+  Snapchat's own page state, not a published contract, so a page can
+  render and still have moved a field; this is how that shows up instead
+  of as silent nulls. Empty on every page this repo was tested against,
+  and the daily canary fails if it is not.
+* `csv_cells_escaped` — CSV cells that began with `=`, `+`, `-`, `@` or a
+  control character and were prefixed with `'` so a spreadsheet reads
+  them as text (bios and captions are written by account owners). JSON
+  keeps the bytes as served. 0 of 10,554 string cells on a live run of
+  2026-10-05.
 
 ---
 

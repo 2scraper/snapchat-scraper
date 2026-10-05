@@ -884,6 +884,168 @@ def check_hcaptcha_is_detected_solved_and_injected_as_itself():
               "HCAPTCHA_MAX_WAIT" in inspect.getsource(fn))
 
 
+def check_outputs_get_the_umask_mode_not_0600():
+    """`NamedTemporaryFile` creates 0600 and a rename keeps it, so every
+    output came out owner-only — nine of nine files on a live run under
+    umask 022 (2026-10-05). A NEW file gets what `open()` would give; an
+    EXISTING file keeps the mode someone chose for it."""
+    old = os.umask(0o022)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            prefix = os.path.join(tmp, "out")
+            output_writer.save([row("nasa")], prefix, "both")
+            for ext in (".json", ".csv"):
+                equal("a new %s is 0644 under umask 022" % ext,
+                      oct(os.stat(prefix + ext).st_mode & 0o777), oct(0o644))
+            os.chmod(prefix + ".json", 0o640)
+            output_writer.save([row("nasa")], prefix, "json")
+            equal("an existing 0640 file stays 0640",
+                  oct(os.stat(prefix + ".json").st_mode & 0o777), oct(0o640))
+    finally:
+        os.umask(old)
+
+
+def check_csv_neutralises_formulas_and_json_keeps_the_bytes():
+    """A bio is written by whoever owns the account. A cell opening with
+    = + - @ or a control character is executed by a spreadsheet, so CSV
+    prefixes an apostrophe; JSON keeps the site's bytes; numbers are never
+    touched; a joined list is escaped too; the count reaches the sidecar."""
+    r = row("nasa")
+    r.bio = "=HYPERLINK(\"http://x\")"
+    r.subscriber_count = -5
+    sp = rows("mrbeast", "spotlight")[0]
+    sp.hashtags = ["+cmd", "#ok"]
+    with tempfile.TemporaryDirectory() as tmp:
+        prefix = os.path.join(tmp, "out")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            output_writer.finish_run([r], prefix, "both", False, blocked=False,
+                                     stop_reason="completed", pages_requested=1,
+                                     pages_completed=1, start_url="u",
+                                     final_url="u", mode="profile",
+                                     extra={"engine": "x"})
+        got = list(csv.DictReader(open(prefix + ".csv", encoding="utf-8")))[0]
+        equal("the formula-shaped bio is text in CSV", got["bio"],
+              "'=HYPERLINK(\"http://x\")")
+        equal("a negative NUMBER is left alone", got["subscriber_count"], "-5")
+        equal("JSON keeps the bytes as served",
+              json.load(open(prefix + ".json", encoding="utf-8"))[0]["bio"],
+              "=HYPERLINK(\"http://x\")")
+        meta = json.load(open(prefix + ".meta.json", encoding="utf-8"))
+        equal("the sidecar declares the divergence", meta["csv_cells_escaped"], 1)
+        equal("and the caller's own fields survive the merge", meta["engine"], "x")
+        output_writer.save([sp], prefix + "s", "csv", row_cls=Spotlight)
+        got = list(csv.DictReader(open(prefix + "s.csv", encoding="utf-8")))[0]
+        check("a joined list whose first item is formula-shaped is escaped",
+              got["hashtags"].startswith("'+cmd"), "got %r" % got["hashtags"])
+
+
+def check_a_moved_key_is_reported_not_silently_nulled():
+    """The source is Snapchat's page state, not a contract. A page that
+    still renders but has lost a key the parser reads would give rows with
+    silent nulls; the parser lists such keys, the engines put them in the
+    sidecar, and the canary fails on them (third-party audit, 2026-10-05).
+
+    Empty on every fixture — counted, along with 20 raw captures and a
+    live page, before the check was written — and non-empty once a key is
+    removed from a real fixture."""
+    for name in PROFILES:
+        if name == "not_found":
+            continue
+        equal("no drift on %s" % name,
+              diag(name).get("payload_keys_missing"), [])
+    payload = json.loads(json.dumps(PROFILES["mrbeast"]["payload"]))
+    pp = payload["next_data"]["props"]["pageProps"]
+    del pp["userProfile"]["publicProfileInfo"]["subscriberCount"]
+    del pp["spotlightStoryMetadata"][0]["engagementStats"]["viewCount"]
+    got = product_parser.parse_page(make_fixtures.as_page(payload), FIXTURE_URL,
+                                    SCRAPED_AT, Profile, "profile")[1]
+    equal("both moved keys are named",
+          got["payload_keys_missing"],
+          ["publicProfileInfo.subscriberCount",
+           "spotlightStoryMetadata[].engagementStats.viewCount"])
+    pp2 = json.loads(json.dumps(PROFILES["mrbeast"]["payload"]))
+    pp2["next_data"]["props"]["pageProps"]["userProfile"]["publicProfileInfo"][
+        "subscriberCount"] = "0"
+    equal("a hidden (zero) count is a VALUE, not drift",
+          product_parser.parse_page(make_fixtures.as_page(pp2), FIXTURE_URL,
+                                    SCRAPED_AT, Profile)[1]["payload_keys_missing"],
+          [])
+    for module in ENGINES:
+        src = open(os.path.join(HERE, module + ".py"), encoding="utf-8").read()
+        check("%s puts it in the sidecar" % module,
+              '"payload_keys_missing": drift or None' in src)
+    canary = open(os.path.join(HERE, ".github", "workflows", "canary.yml"),
+                  encoding="utf-8").read() if os.path.isdir(
+                      os.path.join(HERE, ".github")) else None
+    if canary is not None:
+        check("and the canary fails on it", "payload_keys_missing" in canary)
+
+
+def check_the_profile_row_says_when_the_page_is_not_the_account():
+    """`has_more_spotlight` / `has_more_highlights` on the ROW, from the
+    page's own cursors, so a row read without its sidecar still says the
+    counts are a slice."""
+    equal("@kyliejenner: more of both",
+          (row("kyliejenner").has_more_spotlight,
+           row("kyliejenner").has_more_highlights), (True, True))
+    equal("@nasa: more highlights only",
+          (row("nasa").has_more_spotlight, row("nasa").has_more_highlights),
+          (False, True))
+    equal("an ordinary account: unknown, not False",
+          (row("espn").has_more_spotlight, row("espn").has_more_highlights),
+          (None, None))
+
+
+def check_the_sidecar_records_the_transport_that_ran():
+    """The default `--transport auto` was written to the sidecar as "auto",
+    which names no transport at all (live run, 2026-10-05). It now records
+    what fetched the pages, and what was asked for beside it."""
+    engine = _import_engine("playwright_scraper")
+    if engine is None:
+        return
+    ns = types.SimpleNamespace
+    equal("auto that never fell back is http",
+          engine._transport_used(ns(transport="auto", cdp_endpoint=None)), "http")
+    equal("auto that fell back is browser (the engine rewrites args.transport)",
+          engine._transport_used(ns(transport="browser", cdp_endpoint=None)),
+          "browser")
+    equal("a CDP endpoint is cdp",
+          engine._transport_used(ns(transport="auto", cdp_endpoint="ws://h:1")),
+          "cdp")
+    for module in ENGINES:
+        src = open(os.path.join(HERE, module + ".py"), encoding="utf-8").read()
+        check("%s records the transport used, not the one asked for" % module,
+              'extra["transport"] = _transport_used(args)' in src
+              and 'extra["transport_requested"]' in src)
+
+
+def check_the_three_engines_share_one_copy_of_the_loop():
+    """Everything from `_dump` to the driver context, and `scrape()` to
+    the end, is the SAME code in all three engines — only the driver layer
+    above it differs. Held by this check rather than by discipline; a
+    third-party audit (2026-10-05) named the three copies as the risk."""
+    def block(src, start, end=None):
+        i = src.index(start)
+        j = src.index(end, i) if end else len(src)
+        return src[i:j]
+    srcs = {m: open(os.path.join(HERE, m + ".py"), encoding="utf-8").read()
+            for m in ENGINES}
+    mids = {m: block(s, "def _dump(", "class _driver_context") for m, s in srcs.items()}
+    equal("the fetch/run block is identical in all three",
+          len(set(mids.values())), 1)
+    exc = {"playwright_scraper": "PWError", "puppeteer_scraper": "PyppeteerError",
+           "selenium_scraper": "WebDriverException"}
+    tails = set()
+    for m, s in srcs.items():
+        t = block(s, "def scrape(args) -> int:")
+        t = t.replace('extra["engine"] = "%s"' % m.split("_")[0], 'extra["engine"] = E')
+        t = t.replace("except %s as exc:" % exc[m], "except DRIVER as exc:")
+        tails.add(t)
+    equal("scrape() and the CLI are identical but for the engine's own name",
+          len(tails), 1)
+
+
 def check_the_modes_cannot_disagree_about_an_account():
     """All three modes read one page, so their counts must agree."""
     for name in ("nasa", "mrbeast", "kyliejenner", "khaby00"):
