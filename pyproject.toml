@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "snapchat-scraper"
-version = "0.1.0"
+version = "0.2.0"
 description = "Snapchat scraper: public profiles (subscribers, bio, category, website), Spotlight videos with view/share/comment/boost counts, and story and highlight snaps, read from the page Snapchat server-renders to anyone."
 readme = "README.md"
 license = "MIT"
