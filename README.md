@@ -293,8 +293,14 @@ Variables: `TWOCAPTCHA_KEY`, `SNAPCHAT_CDP_ENDPOINT`, `SNAPCHAT_PROXY`,
 `.github/workflows/canary.yml` runs real scrapes against live Snapchat
 every morning **from a bare GitHub runner with no secrets** — four profiles
 covering a public organisation, a public person, an ordinary account and a
-username that does not exist, plus a Spotlight run — and is expected to be
-green.
+username that does not exist, a Spotlight run, and one profile through a
+local browser (`--transport browser`) so the fallback transport is tested
+too. None of that needs a secret.
+
+A second job runs the paid Scraper API path and needs a `TWOCAPTCHA_KEY`
+repository secret. Without it that job fails with an error naming the
+secret rather than skipping green, because a skipped job is not a tested
+path.
 
 That is not a convenience. The central claim of this README is "you need no
 key, no proxy and no account", and an ungated scheduled canary is that

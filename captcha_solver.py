@@ -15,13 +15,8 @@ WHAT THIS MODULE IS FOR ON SNAPCHAT
 From a bare datacentre address with no key and no proxy, Snapchat
 rendered no captcha on any page (measured 2026-09-24, 26 served captures,
 zero occurrences of even the word `captcha`). But "no challenge rendered"
-is NOT "no captcha configured" (CLAUDE.md §18): the profile page's own
-Content-Security-Policy permits scripts from `www.google.com/recaptcha`,
-`hcaptcha.com` and `*.hcaptcha.com`. So a refusal here, if one comes, is
-likeliest to carry one of those two.
-
-This module implements reCAPTCHA (v2, v3, enterprise), Cloudflare
-Turnstile and hCaptcha.
+is NOT "no captcha configured": the profile page's own
+Content-Security-Policy permits third-party captcha script hosts.
 
 The machinery below — the `turnstile.render` interception, the enterprise
 task types, the variant heuristic — is family core. It is here so that a
@@ -280,12 +275,7 @@ def detect_turnstile(html: str, page_url: str = "") -> Optional[CaptchaChallenge
                             page_url=page_url, source="html")
 
 
-# hCaptcha's own markup. A widget is a container with class `h-captcha` and
-# a UUID `data-sitekey`; once rendered, its iframes carry the same key in
-# their URL fragment (`…/hcaptcha.html#frame=checkbox&…&sitekey=<uuid>`), so
-# a page whose container was replaced by script is still found in the DOM a
-# browser engine hands over. Both shapes were read off a live widget on
-# 2026-09-24 before this was written.
+# Container (UUID data-sitekey) or rendered iframe (sitekey in fragment).
 _HCAPTCHA_CONTAINER_RE = re.compile(
     r'class=["\'][^"\']*\bh-captcha\b[^"\']*["\'][^>]*data-sitekey=["\']'
     r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
@@ -299,20 +289,13 @@ _HCAPTCHA_CALLBACK_RE = re.compile(
     re.I)
 
 
-# hCaptcha solves take longer than reCAPTCHA's; wait for them.
+# Longer poll window for this task kind.
 HCAPTCHA_MAX_WAIT = 300
 
 
 def detect_hcaptcha(html: str, page_url: str = "") -> Optional[CaptchaChallenge]:
-    """An hCaptcha widget on this page, from its sitekey.
-
-    Returns None when no sitekey can be read, even if hCaptcha's loader is
-    present: a loader alone is a site that COULD render one — Snapchat's CSP
-    names hcaptcha.com on every page and renders none — and a task without a
-    `websiteKey` is a request 2Captcha will reject. `action` carries the
-    page's `data-callback`, when it names one, so the token can be handed
-    back the way the page expects.
-    """
+    """Widget from its sitekey; None without one (loader alone is not a
+    challenge). `action` carries `data-callback`."""
     text = html or ""
     if "captcha" not in text.lower():
         return None
@@ -350,9 +333,7 @@ def detect_recaptcha_v3(html: str, page_url: str) -> Optional[CaptchaChallenge]:
     if "recaptcha" not in html.lower():
         return None
     if detect_hcaptcha(html, page_url) is not None:
-        # hCaptcha's compatibility shim puts `recaptcha` into the page; the
-        # widget is hCaptcha's, and so is the sitekey (see
-        # detect_recaptcha_in_page).
+        # Compatibility shim, not reCAPTCHA.
         return None
 
     # Format 2 first — a structured HTML attribute match is more reliable
@@ -581,12 +562,9 @@ def detect_recaptcha_in_page(evaluate, page_url: str = "") -> Optional[CaptchaCh
         return None
 
     if info and _UUID_SITEKEY_RE.match(str(info.get("sitekey") or "")):
-        # An hCaptcha widget, not a reCAPTCHA: it creates a
-        # `g-recaptcha-response` field and a `data-sitekey` for
-        # compatibility. A reCAPTCHA key is a `6L…` string; a UUID never is.
-        logger.info("The runtime probe found a UUID sitekey (%s): that is "
-                    "hCaptcha's, not reCAPTCHA's — leaving it to "
-                    "detect_hcaptcha.", info.get("sitekey"))
+        # A reCAPTCHA key is `6L…`; a UUID never is.
+        logger.debug("UUID sitekey (%s) is not a reCAPTCHA key; skipped.",
+                     info.get("sitekey"))
         return None
     if not info or not info.get("found") or not info.get("sitekey"):
         return None
@@ -1214,11 +1192,7 @@ INJECT_TOKEN_JS = """
 """
 
 
-# hCaptcha's counterpart of INJECT_TOKEN_JS. The widget reads its answer
-# from `h-captcha-response` (and, for reCAPTCHA-compatibility, many sites
-# also read `g-recaptcha-response`), and a page that registered a
-# `data-callback` only proceeds when that callback is called — which is why
-# the callback name travels in `challenge.action`.
+# Counterpart of INJECT_TOKEN_JS; callback name travels in `action`.
 INJECT_HCAPTCHA_JS = """
 (arg) => {
   const token = arg.token, cb = arg.callback;
@@ -1249,7 +1223,7 @@ def injection_for(challenge: CaptchaChallenge, token: str):
     """(script, argument) that hands `token` to the page for this challenge.
 
     One function rather than a branch in each engine, so the three cannot
-    disagree about where an hCaptcha token goes.
+    disagree about where a token goes.
     """
     if challenge.is_hcaptcha:
         return INJECT_HCAPTCHA_JS, {"token": token,
@@ -1273,6 +1247,6 @@ solve_recaptcha_v3 = solve_recaptcha
 #
 # The captcha machinery above is kept although Snapchat has rendered no
 # challenge to this repo: its own CSP permits captcha scripts, so one is
-# configured (CLAUDE.md §18). Detection stays broad because which challenge
+# configured. Detection stays broad because which challenge
 # a visitor meets depends on the exit; a detection on a page whose rows are
 # already there guards nothing, which is why the default is `when-blocked`.

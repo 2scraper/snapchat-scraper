@@ -14,8 +14,8 @@ test. Counted on the @nasa capture (672 KB):
                                         a per-visit `webClientId`
 
 None of it is a credential, and the session-shaped part was anonymous and
-per-visit. It still does not belong in a public repo, and CLAUDE.md §10 is
-explicit that the checks need the STRUCTURE of a thing, not the session
+per-visit. It still does not belong in a public repo, and
+ the checks need the STRUCTURE of a thing, not the session
 that fetched it or other people's words. So a fixture keeps only the
 `__NEXT_DATA__` keys the parser reads, only the fields inside them the
 parser reads, and only the ProfilePage JSON-LD block. The rest is absent as
@@ -29,7 +29,7 @@ logged-out visitor, and the checks test real values.
 Verify a trimmed fixture parses identically to its untrimmed original
 =====================================================================
 `--verify` re-parses both in ALL THREE modes and compares every row field
-by field, plus the page state. CLAUDE.md §15 asks for this before
+by field, plus the page state. Do this before
 committing any trimmed fixture, and it is one command rather than a
 promise — which matters more here than in most repos, because this trim
 drops FIELDS inside the objects under test, not just whole objects beside
@@ -56,7 +56,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                    "fixtures_generated.json")
 
 # The captures these fixtures are cut from, each here for a reason no other
-# covers (CLAUDE.md §15: one dump teaches you one shape).
+# covers (one dump teaches you one shape).
 #   filename -> (fixture name, HTTP status the capture came with, why)
 WANTED = {
     "prof_nasa.html": ("nasa", 200,

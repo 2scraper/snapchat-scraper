@@ -8,6 +8,28 @@ closely as a CLI toolkit can. A patch release means **fixes** — it does not
 promise that every flag's default is frozen, and where a default does change
 in one, the note leads with it.
 
+## [Unreleased]
+
+> **Negative counts and delays are now usage errors.** `--retries`,
+> `--proxy-block-retries`, `--delay` and `--retry-delay` (in all three
+> engines, and `--retries` / `--retry-delay` in `scraper_api_client.py`)
+> used to accept a negative value silently — `--retries -1` ran as one
+> attempt. They now exit 2 with an error naming the flag. `--retries 0`
+> stays legal: it counts extra attempts, so 0 still fetches once.
+
+### Changed
+
+- **The daily canary now tests the browser transport** with one profile
+  through local Chromium, so the fallback a challenge would trigger has
+  live coverage. The paid Scraper API job now fails, naming the missing
+  `TWOCAPTCHA_KEY` secret, instead of skipping green.
+- **Comments and docstrings state each safeguard in this repository's own
+  words** instead of pointing at an internal document readers cannot open,
+  and a suite check keeps it that way. `.env.example` no longer states a
+  fixed lifetime for Scraping Browser credentials.
+- The file-mode check now runs under umask 022, 002 and 077, so a rule that
+  is only right under the default umask fails it.
+
 ## [0.2.0] — 2026-10-05
 
 Changes from a third-party audit, each checked against a live run before it

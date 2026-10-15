@@ -54,7 +54,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-# Imported at MODULE level on purpose. CLAUDE.md §10: a sibling repo
+# Imported at MODULE level on purpose. A sibling repo
 # imported `launch`/`connect` inside its launch path, so the module
 # imported cleanly with no pyppeteer installed — the offline suite's engine
 # group never skipped, and the CI job that exists to fail on unexpected
@@ -98,7 +98,7 @@ logger = logging.getLogger("puppeteer_scraper")
 DriverError = (PyppeteerError, NetworkError, PPTimeout,
                concurrent.futures.TimeoutError, TimeoutError)
 
-# Every remote call is bounded (CLAUDE.md §8). pyppeteer's `connect`
+# Every remote call is bounded. pyppeteer's `connect`
 # imposes no timeout of its own.
 CDP_CONNECT_TIMEOUT = 30
 
@@ -107,16 +107,16 @@ CDP_CONNECT_TIMEOUT = 30
 MODES = parser.MODES
 DEFAULT_MODE = "profile"
 
-# Every remote call is bounded (CLAUDE.md §8). Playwright's request API
+# Every remote call is bounded. Playwright's request API
 # takes a per-call timeout and does not impose one of its own.
 REQUEST_TIMEOUT_MS = 30_000
 NAVIGATION_TIMEOUT_MS = 60_000
 
-# How many account links mean "the page rendered". Must be > 1 (CLAUDE.md
-# §5) — and on a profile page there is exactly one account, so the
+# How many account links mean "the page rendered". Must be > 1
+# on a listing — and on a profile page there is exactly one account, so the
 # readiness anchor is the profile HEADER rather than a count of links.
 # Named here rather than in page_flow so an engine's constant stays in an
-# engine, per CLAUDE.md §1.
+# engine.
 MIN_CARD_MATCHES = page_flow.MIN_CARD_MATCHES
 
 # The one page per handle. Stated as a constant so the refusal in
@@ -128,7 +128,7 @@ PAGES_PER_PROFILE = 1
 class PageOutcome:
     """One fetch attempt's result, in request order rather than arrival order.
 
-    CLAUDE.md §8: merging by arrival order makes the output depend on which
+    Merging by arrival order makes the output depend on which
     worker finished first. Workers return these and the caller sorts.
     """
     number: int
@@ -145,7 +145,7 @@ class PageOutcome:
 def _mask_credentials(text: Any) -> str:
     """Mask every credential in a string, not just the first.
 
-    CLAUDE.md §8: a masker that handles the first occurrence prints the
+    A masker that handles the first occurrence prints the
     password the other four times and looks like it is working — Playwright
     repeats a CDP endpoint five times in one error, once in the message and
     four more in its call log.
@@ -161,7 +161,7 @@ def _mask_credentials(text: Any) -> str:
 def _chrome_ua(chromium_version: str) -> str:
     """A user agent built from the Chromium actually installed.
 
-    CLAUDE.md §8: a hardcoded version drifts from whatever is installed,
+    A hardcoded version drifts from whatever is installed,
     and claiming an older Chrome than the JS engine and TLS handshake
     report is itself a mismatch.
     """
@@ -173,7 +173,7 @@ def _chrome_ua(chromium_version: str) -> str:
 def _proxy_failure(exc: Exception) -> str:
     """Name a dead proxy, or "" for anything else.
 
-    CLAUDE.md §8: Chromium reports a dead proxy as a generic error, not a
+    Chromium reports a dead proxy as a generic error, not a
     timeout, and the two want opposite responses — a timeout deserves
     another try at the SAME exit, a dead proxy a DIFFERENT one. Catching
     only the timeout type let this escape as a traceback in a sibling repo.
@@ -304,8 +304,7 @@ class _Loop:
 # browser is involved at all. A function EXPRESSION, never an evaluated
 # string: Snapchat's CSP carries `'wasm-unsafe-eval'` and NOT
 # `'unsafe-eval'` (measured 2026-09-24), so an evaluated string dies with
-# EvalError here — CLAUDE.md §18 records a sibling whose run died on
-# exactly that.
+# EvalError here, as a sibling's run once did.
 _FETCH_JS = """
 async (spec) => {
   const init = {method: spec.method, headers: spec.headers,
@@ -320,7 +319,7 @@ async (spec) => {
 class _BrowserSession:
     """A browser, a page on snapchat.com, and a fetch primitive bound to it.
 
-    A rotation is a FRESH BROWSER (CLAUDE.md §8): cookies a bot manager
+    A rotation is a FRESH BROWSER: cookies a bot manager
     issued against exit A and replayed from exit B are a stronger signal
     than either address alone. So this object is torn down and rebuilt
     rather than having its proxy swapped underneath it.
@@ -463,7 +462,7 @@ def _launch_local(pw, args, pool: Optional[ProxyPool]) -> _BrowserSession:
         host_only, username, password = split_credentials(proxy_url)
         # Credentials NEVER go into argv — `--proxy-server=` becomes part
         # of the browser's command line, readable by anything that can run
-        # `ps` and kept in shell history (CLAUDE.md §8). The host and port
+        # `ps` and kept in shell history. The host and port
         # stay, because which exit a run used is the point of the log and
         # is not the secret.
         launch_args.append(f"--proxy-server={host_only}")
@@ -500,7 +499,7 @@ def _launch_local(pw, args, pool: Optional[ProxyPool]) -> _BrowserSession:
 def _apply_fingerprint(loop, page, fingerprint, user_agent) -> None:
     """Give the identity everything the fingerprint states, not just a UA.
 
-    CLAUDE.md §24 measured a BARE user-agent override being served on the
+    A BARE user-agent override was measured on a sibling site being served on the
     first navigation and refused on the next three, while a complete
     identity was served throughout. `page.setUserAgent` on its own is that
     bare override: it changes `navigator.userAgent` and leaves
@@ -525,7 +524,7 @@ def _apply_fingerprint(loop, page, fingerprint, user_agent) -> None:
     # Measured 2026-09-21 rather than reasoned about: a run reported the
     # fingerprint applied while the page returned `deviceMemory` 8 against
     # the fingerprint's 32, `hardwareConcurrency` 4 against 32, and the
-    # real SwiftShader renderer string. CLAUDE.md §1 names this exact
+    # real SwiftShader renderer string. This is the
     # hazard — the drivers disagree about what a snippet IS — which is why
     # the shared module emits source and each engine installs it its own
     # way.
@@ -561,7 +560,7 @@ def _apply_fingerprint(loop, page, fingerprint, user_agent) -> None:
     if not metadata:
         logger.warning("The fingerprint carried no brand list, so its client "
                        "hints are left alone: a HALF identity is worse than "
-                       "none (CLAUDE.md §24).")
+                       "none.")
         return
     payload = {"userAgent": user_agent, "userAgentMetadata": metadata}
     language = accept_language(fingerprint)
@@ -594,7 +593,7 @@ def _connect_remote(pw, args) -> _BrowserSession:
 
     Never sets a user agent, a fingerprint or a proxy on top: the remote
     browser brings its own, and stacking a second creates a contradiction
-    rather than better cover (CLAUDE.md §8). Unlike chromedriver, pyppeteer
+    rather than better cover. Unlike chromedriver, pyppeteer
     takes a full `ws://user:pass@host:port` and authenticates on the
     WebSocket upgrade, so an authenticated endpoint works here.
     """
@@ -616,7 +615,7 @@ def _connect_remote(pw, args) -> _BrowserSession:
             # loop's handler caught. Preferring it turns "did not return
             # within 30s" into "server rejected WebSocket connection: HTTP
             # 500", which is the difference between checking your network
-            # and reading CLAUDE.md §20.
+            # and knowing it is the service.
             reason = _mask_credentials(_Loop.last_error or exc)
             if attempt >= attempts or "profile_locked" in reason:
                 loop.close()
@@ -649,7 +648,7 @@ def _open_http(args, pool: Optional[ProxyPool]) -> HttpSession:
     if args.fingerprint:
         # An HTTP client can carry the user agent and the language list but
         # not the client hints, the platform or the WebGL strings — so it
-        # can only ever wear HALF an identity, which CLAUDE.md §24 measures
+        # can only ever wear HALF an identity, which a sibling site measured
         # as worse than none on a site that scores self-consistency.
         # Refused rather than half-applied.
         logger.warning("--fingerprint is ignored on the HTTP transport: an "
@@ -737,13 +736,13 @@ def _handle_captcha_in_browser(session, args,
     """Detect and, if it is worth paying for, solve a challenge.
 
     Both call sites — before classification and after — go through the same
-    `SolveBudget`, which is the CLAUDE.md §23 fix: `SOLVES_PER_PAGE` read
+    `SolveBudget`, so that `SOLVES_PER_PAGE` is enforced. It read
     like an enforced limit in every repo in this family and was not one,
     because only the second of the two calls was counted. One page bought
     three solves on a site where a challenge rendered on every fetch.
 
-    A missing key or a solver error is a WARNING and the run continues
-    (CLAUDE.md §8): detection is not the same as blocking, and a run that
+    A missing key or a solver error is a WARNING and the run continues:
+    detection is not the same as blocking, and a run that
     already has data must not die because a solve failed.
     """
     if args.solve_captcha == "never":
@@ -757,9 +756,7 @@ def _handle_captcha_in_browser(session, args,
         live = detect_recaptcha_in_page(session.evaluate, session.url)
     except Exception:                              # noqa: BLE001
         live = None
-    # hCaptcha first: it carries a `g-recaptcha-response` field and a
-    # `data-sitekey` for compatibility, which the reCAPTCHA probe would
-    # otherwise take for its own.
+    # UUID-key widget first (it also carries reCAPTCHA-compatible fields).
     challenge = (detect_hcaptcha(html, session.url)
                  or reconcile_detections(static, live))
     if challenge is None:
@@ -817,7 +814,7 @@ def _handle_captcha_in_browser(session, args,
 def _dump(args, name: str, payload: Any) -> None:
     """Write the exact bytes a call returned.
 
-    On SUCCESS too, not only on failure (CLAUDE.md §9): a run can return
+    On SUCCESS too, not only on failure: a run can return
     the right count with a field silently unpopulated, and then the exact
     payload is the only way to tell a parsing bug from a too-early
     snapshot.
@@ -865,7 +862,7 @@ def _fetch_with_policy(session_box: Dict[str, Any], pw, args,
 
     `session_box` holds the live session so a rotation can replace it: a
     rotation is a fresh browser, never a proxy swapped under a live
-    session (CLAUDE.md §8).
+    session.
     """
     budget = SolveBudget()
     attempts = max(1, int(args.retries) + 1)
@@ -892,8 +889,7 @@ def _fetch_with_policy(session_box: Dict[str, Any], pw, args,
                 # responses: a timeout deserves another try at the SAME
                 # exit, a dead proxy a DIFFERENT one. Chromium reports it
                 # as a generic error rather than as a timeout, which is how
-                # this escaped as a traceback in a sibling repo
-                # (CLAUDE.md §8).
+                # this escaped as a traceback in a sibling repo.
                 logger.warning("%s failed at the EXIT, not at the site: %s "
                                "via %s. Rotating rather than retrying the "
                                "same address.", label, exit_failed,
@@ -974,9 +970,9 @@ def _rotate_if_per_page(session_box, pw, args, pool, why: str) -> bool:
     run whose pages all succeeded stayed on one address for its whole
     life. The flag read like a traffic-spreading control and was a
     recovery control — a setting that looks configurable and is not
-    (CLAUDE.md §3 says that about `.env`; it is the same defect here).
+    (the same defect as an `.env` variable mapped onto such a flag).
 
-    A rotation is a FRESH BROWSER (CLAUDE.md §8): cookies a bot manager
+    A rotation is a FRESH BROWSER: cookies a bot manager
     issued against exit A and replayed from exit B are a stronger signal
     than either address alone, so the session is torn down and rebuilt
     rather than having its proxy swapped underneath it.
@@ -1000,7 +996,7 @@ def _worker_pool(pool: Optional[ProxyPool], worker_index: int):
     Each worker gets its OWN pool object holding the same exits rotated to
     a different offset, so workers start on distinct addresses and no
     thread needs a lock — the concurrency is safe by construction rather
-    than by discipline (CLAUDE.md §7).
+    than by discipline.
     """
     if not pool:
         return None
@@ -1057,7 +1053,7 @@ def _fetch_one_profile(session_box, pw, args, pool, handle: str,
                           blocked=blocked)
 
     # The state policy decides whether to parse, rather than this engine
-    # comparing the state against a literal of its own. CLAUDE.md §17: a
+    # comparing the state against a literal of its own. A
     # policy READ by one engine and hardcoded by its twin is how three
     # engines come to disagree about the same page.
     if not page_flow.should_parse(state):
@@ -1075,8 +1071,7 @@ def _fetch_one_profile(session_box, pw, args, pool, handle: str,
     except PayloadError as exc:
         # A page Snapchat served that this parser did not understand. Its
         # own outcome, so it cannot be reported as "no such account" and
-        # send the reader to check the username instead of the parser
-        # (CLAUDE.md §20).
+        # send the reader to check the username instead of the parser.
         logger.error("%s: the page was served and did not parse: %s", label, exc)
         outcome.state = parser.STATE_PARSE_ERROR
         outcome.error = str(exc)
@@ -1098,7 +1093,7 @@ def _fetch_profiles_concurrently(pw, args, pool, handles, scraped_at, workers):
 
     A worker owns ONE exit for its lifetime and starts at a different
     offset in the pool, so no thread needs a lock — the concurrency is
-    safe by construction rather than by discipline (CLAUDE.md §7).
+    safe by construction rather than by discipline.
     """
     work: "queue.Queue[Tuple[int, str]]" = queue.Queue()
     for i, handle in enumerate(handles):
@@ -1122,7 +1117,7 @@ def _fetch_profiles_concurrently(pw, args, pool, handles, scraped_at, workers):
                                                  handle, scraped_at)
                 except Exception as exc:                      # noqa: BLE001
                     # A worker that raises must neither hang the run nor
-                    # lose its siblings' pages (CLAUDE.md §10).
+                    # lose its siblings' pages.
                     logger.error("worker %d failed on @%s: %s", index, handle,
                                  _mask_credentials(exc))
                     outcome = PageOutcome(number=slot + 1,
@@ -1142,8 +1137,7 @@ def _fetch_profiles_concurrently(pw, args, pool, handles, scraped_at, workers):
         t.start()
     for t in threads:
         t.join()
-    # Restored to the order --url named them, never arrival order
-    # (CLAUDE.md §8).
+    # Restored to the order --url named them, never arrival order.
     return [results[i] for i in sorted(results)]
 
 
@@ -1219,8 +1213,8 @@ def _run_profile(session_box, pw, args, pool) -> Tuple[List[Any], Dict[str, Any]
         for key in diag.get("payload_keys_missing") or ():
             drift.setdefault(key, []).append(handles[i])
         # `page` is WHICH ACCOUNT of the run a row came from, so that
-        # `page`+`position` is unique across a multi-account run — CLAUDE.md
-        # §18 records a sibling where 60 of 119 rows claimed a position
+        # `page`+`position` is unique across a multi-account run — a
+        # sibling once had 60 of 119 rows claimed a position
         # another row already had because the page was never threaded in.
         for row in outcome.rows:
             row.page = i + 1
@@ -1251,8 +1245,7 @@ def _run_profile(session_box, pw, args, pool) -> Tuple[List[Any], Dict[str, Any]
         # Accounts whose page carried a cursor for MORE Spotlight or
         # highlights than it listed. A run of those holds the page's slice,
         # not the account's whole history, and the sidecar says so rather
-        # than leaving "complete" to be misread as "exhaustive"
-        # (CLAUDE.md §21).
+        # than leaving "complete" to be misread as "exhaustive".
         "handles_with_more_than_page": more_beyond_page or None,
         "spotlight_empty_slots": empty_slots,
         # The country Snapchat says the request came from — its own
@@ -1311,7 +1304,7 @@ def scrape(args) -> int:
     if pool and args.concurrency > 1:
         logger.info("%d worker(s) over %d exit(s).", args.concurrency, len(pool))
     elif args.concurrency > 1 and not pool:
-        # Warn, do not refuse (CLAUDE.md §7).
+        # Warn, do not refuse.
         logger.warning("--concurrency %d with no proxy pool sends %dx the "
                        "traffic from one address, which is a faster way to "
                        "get it scored than to gather data.",
@@ -1415,11 +1408,11 @@ def parse_args(argv: Optional[List[str]] = None):
     p.add_argument("--format", choices=("json", "csv", "both"), default="json")
     p.add_argument("--out", default="snapchat_profiles",
                    help="Output file prefix.")
-    p.add_argument("--delay", type=float, default=0.0,
+    p.add_argument("--delay", type=page_flow.non_negative_float, default=0.0,
                    help="Seconds to wait between accounts.")
-    p.add_argument("--retries", type=int, default=2,
+    p.add_argument("--retries", type=page_flow.non_negative_int, default=2,
                    help="Retries per request for a transient fault.")
-    p.add_argument("--retry-delay", type=float, default=2.0)
+    p.add_argument("--retry-delay", type=page_flow.non_negative_float, default=2.0)
     p.add_argument("--concurrency", type=int, default=1,
                    help="Workers. Genuinely usable here: every handle has "
                         "its own address, so there is no token chain to "
@@ -1431,7 +1424,7 @@ def parse_args(argv: Optional[List[str]] = None):
                    help="File of proxy URLs, one per line.")
     p.add_argument("--proxy-rotate", choices=ROTATE_MODES, default="per-run")
     p.add_argument("--proxy-shuffle", action="store_true")
-    p.add_argument("--proxy-block-retries", type=int, default=2,
+    p.add_argument("--proxy-block-retries", type=page_flow.non_negative_int, default=2,
                    help="Exits to try when a request is refused.")
     p.add_argument("--twocaptcha-key", default=None,
                    help="2Captcha API key. Also read from TWOCAPTCHA_KEY.")

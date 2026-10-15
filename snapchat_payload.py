@@ -24,7 +24,7 @@ captures this repo was built from:
                                (against FOUR Spotlight videos in the payload)
     @kyliejenner    0 blocks   the page opens on a live story
 
-CLAUDE.md §24 records a sibling whose JSON-LD was a decoy beside the real
+A sibling repo's JSON-LD was a decoy beside the real
 grid; here it is a partial, sometimes-absent view of the same data. So
 `__NEXT_DATA__` is primary, and JSON-LD is read for the two facts only it
 states — `dateCreated` and `dateModified` — and to tell a HIDDEN
@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional
 
 # Anchored on the element id Next.js itself looks the payload up by, not on
 # any class in the rendered page: the id is part of the framework's
-# contract, classes are build artefacts (CLAUDE.md §4).
+# contract, classes are build artefacts.
 _NEXT_DATA_RE = re.compile(
     r'<script\s+id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
 _LD_JSON_RE = re.compile(
@@ -51,15 +51,14 @@ class PayloadError(ValueError):
 
     Distinct from "the payload said there is no such account", which is a
     fact about the account. Confusing the two is how a scraper reports a
-    parsing bug as an empty result, or an empty result as a parsing bug
-    (CLAUDE.md §20).
+    parsing bug as an empty result, or an empty result as a parsing bug.
     """
 
 
 def decode_page(raw: Any, content_type: Optional[str] = None) -> str:
     """Bytes (or str) to text, honouring a declared charset.
 
-    CLAUDE.md §24: one site in this family serves its detail pages as
+    One site in this family serves its detail pages as
     EUC-JP and its listing pages as UTF-8, and a blind
     `bytes.decode("utf-8", "replace")` turned every title into replacement
     characters while the numbers still parsed. Snapchat is UTF-8
@@ -220,22 +219,17 @@ def to_int(raw: Any) -> Optional[int]:
 # profiles, Spotlight, Discover, Lenses, a topic page, the not-found page —
 # every candidate below scored ZERO, and so did the bare word `captcha`.
 #
-# So this set is not a list of what Snapchat has been seen to render. No
-# challenge has been observed. But one IS configured: the profile page's
-# own Content-Security-Policy permits scripts from `hcaptcha.com`,
-# `*.hcaptcha.com` and `www.google.com/recaptcha` (measured 2026-09-24).
-# CLAUDE.md §18's point exactly — "no challenge rendered" is not "no
-# captcha configured" — and the reason the first two loaders below are the
-# site's own candidates rather than a vendor list copied from a sibling. It is the loader paths of the widgets a
-# solver in this family can handle, chosen to be SPECIFIC: CLAUDE.md §24
-# counted 21 occurrences of the bare word `captcha` on a good page fetched
+# No challenge has been observed, but the profile page's CSP permits
+# third-party captcha script hosts, so "no challenge rendered" is not "no
+# captcha configured". The set is loader paths, chosen to be SPECIFIC: a
+# sibling counted 21 occurrences of the bare word `captcha` on a good page fetched
 # over the 2Captcha Scraping Browser, because its auto-solve extension
 # injects hunter scripts into every page. A loader path is injected by
 # nothing.
 #
-# `cf-turnstile` is NOT here, deliberately: that same extension injects it
-# (CLAUDE.md §8, §19). `challenges.cloudflare.com` is, and CLAUDE.md §23
-# records a site where it was INVERTED because the site loaded Turnstile
+# `cf-turnstile` is NOT here, deliberately: that same extension injects it.
+# `challenges.cloudflare.com` is, and a sibling
+# recorded a site where it was INVERTED because the site loaded Turnstile
 # itself — which Snapchat does not, 0 on 26 served pages. Count it again on
 # any new route before trusting it.
 BOT_CHALLENGE_MARKERS = (
@@ -243,8 +237,7 @@ BOT_CHALLENGE_MARKERS = (
     "recaptcha/enterprise.js",
     "recaptcha/api2/anchor",
     "hcaptcha.com/1/api.js",
-    # A RENDERED hCaptcha widget's own iframe path — what a browser DOM holds
-    # once the loader has run, when the loader tag itself may be gone.
+    # Rendered-widget iframe path.
     "hcaptcha.com/captcha/",
     "challenges.cloudflare.com",
     "_cf_chl_opt",
@@ -264,13 +257,13 @@ def challenge_markers_present(html: Any) -> List[str]:
     return [m for m in BOT_CHALLENGE_MARKERS if m in text]
 
 
-# Positive-asset detection (CLAUDE.md §8, §18): a page Snapchat actually
+# Positive-asset detection: a page Snapchat actually
 # serves is built out of its own static host; an interstitial, a proxy's
 # error page or Chromium's own network-error page is not. Counted
 # 2026-09-24: 5 to 39 references on every served page, the not-found page
 # included. The threshold is 2 rather than 1 so a minimal real page is
-# never read as somebody else's (CLAUDE.md §17's classification-order
-# trap).
+# never read as somebody else's (order signals by how much they
+# prove).
 SITE_ASSET_MARKERS = ("static.snapchat.com",)
 MIN_ASSET_REFERENCES = 2
 

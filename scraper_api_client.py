@@ -20,7 +20,7 @@ exit.
 
     # TWOCAPTCHA_KEY and SNAPCHAT_URL are read from .env, so neither needs
     # to be typed — a secret in argv is readable by anything that can run
-    # `ps` (CLAUDE.md §3).
+    # `ps`.
 """
 
 import argparse
@@ -41,6 +41,7 @@ from snapchat_payload import PayloadError, challenge_markers_present
 from output_writer import (EXIT_NO_PRODUCTS, ROW_CLASS_BY_MODE, finish_run,
                            utc_now)
 import env_config
+from page_flow import non_negative_int
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("scraper_api_client")
@@ -183,7 +184,7 @@ def fetch_html(args) -> str:
     # the word "success" against 400 and crashed on its first live run
     # (`'>=' not supported between 'str' and 'int'`), while the comment
     # beneath this line claimed the status was being threaded through.
-    # CLAUDE.md §16: re-read what a remote API actually returns, rather
+    # Re-read what a remote API actually returns, rather
     # than what the client's field names imply it returns.
     raw_status = body.get("http_code")
     try:
@@ -287,7 +288,7 @@ def _run_once(args, attempt: int = 1, attempts: int = 1) -> int:
             "one, so this is either a page kind this client does not read or "
             "a change in the site. NOT reported as 'no account': a served "
             "page that parses to nothing is our bug, not an empty result "
-            "(CLAUDE.md §20).", len(html), exc, dump)
+            ".", len(html), exc, dump)
         return 1
 
     if not rows:
@@ -366,10 +367,10 @@ def parse_args():
                       # measured 2026-09-23.
                       choices=("load", "domcontentloaded"),
                       help="Wait for a page lifecycle state.")
-    p.add_argument("--retries", type=int, default=1,
+    p.add_argument("--retries", type=non_negative_int, default=1,
                    help="Retries when the response is a challenge page. Each "
                         "one is a fresh billable task.")
-    p.add_argument("--retry-delay", type=int, default=5)
+    p.add_argument("--retry-delay", type=non_negative_int, default=5)
     p.add_argument("--dump-html", default=None,
                    help="Write the exact HTML the service returned.")
     p.add_argument("--allow-empty", action="store_true")
