@@ -3,9 +3,9 @@
 #
 # WHY THIS CANARY IS NOT GATED ON A SECRET
 # ----------------------------------------
-# CLAUDE.md §11 says a canary that cannot pass must SKIP rather than fail,
+# A canary that cannot pass must SKIP rather than fail,
 # because a check that is always red teaches everyone to ignore checks. The
-# other half of that rule is §21's: a canary that CAN pass without a
+# other half of that rule: a canary that CAN pass without a
 # credential should never be gated on one.
 #
 # This repo is that case. Its central README claim is that a Snapchat
@@ -17,8 +17,12 @@
 # goes red the next day and the claim is retested without anyone having to
 # remember to.
 #
-# The paid path is the one that skips: `scraper-api` needs TWOCAPTCHA_KEY
-# and says so with a ::notice:: when it is absent.
+# The browser transport is exercised too (local Chromium, free), so the
+# fallback a challenge would trigger is not left untested.
+#
+# The paid path needs TWOCAPTCHA_KEY. Without it that job FAILS with an
+# ::error:: naming the secret: a job that skips green reads as a tested
+# path when nothing was tested.
 name: canary
 
 on:
@@ -56,7 +60,7 @@ jobs:
       #                     "Snapchat answered, and the answer was nothing"
       #                     branch rather than only the happy one
       #
-      # CLAUDE.md §11 asks a canary to exercise pagination; a profile is one
+      # A canary should exercise pagination; a profile is one
       # page, so the equivalent is more than one ACCOUNT and more than one
       # outcome — and a second MODE, because the Spotlight columns come from
       # a different part of the payload.
@@ -78,6 +82,19 @@ jobs:
             --format both --out canary_spotlight
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
+      - name: Install Chromium for the browser transport
+        run: python -m playwright install --with-deps chromium
+
+      # The default run never starts a browser, so without this step the
+      # fallback transport would have no live coverage at all.
+      - name: Scrape one profile through a local browser
+        id: browser
+        run: |
+          set +e
+          python playwright_scraper.py --url nasa --transport browser \
+            --format json --out canary_browser
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
       - name: Assert what the runs actually produced
         run: |
           python - <<'PY'
@@ -86,7 +103,7 @@ jobs:
           fail = []
 
           # Exit 5 is a DEFECT here, not an access condition: nothing in
-          # these runs uses a credential that can expire (CLAUDE.md §24).
+          # these runs uses a credential that can expire.
           rc = int("${{ steps.run.outputs.exit_code }}")
           meta = json.load(open("canary_profiles.meta.json"))
           rows = json.load(open("canary_profiles.json"))
@@ -159,13 +176,28 @@ jobs:
           if len(set(pairs)) != len(pairs):
               fail.append("spotlight: page+position is not unique")
 
+          rc = int("${{ steps.browser.outputs.exit_code }}")
+          bmeta = json.load(open("canary_browser.meta.json"))
+          brows = json.load(open("canary_browser.json"))
+          if rc != 0:
+              fail.append(f"browser: exit {rc}")
+          if bmeta.get("transport") != "browser":
+              fail.append(f"browser: transport {bmeta.get('transport')!r}")
+          if len(brows) != 1:
+              fail.append(f"browser: {len(brows)} rows, expected 1")
+          elif not isinstance(brows[0].get("subscriber_count"), int) \
+                  or brows[0]["subscriber_count"] < 200_000:
+              fail.append(f"browser: @nasa subscriber_count "
+                          f"{brows[0].get('subscriber_count')!r} below the floor")
+
           if fail:
               print("::error::canary FAILED")
               for line in fail:
                   print(f"  - {line}")
               sys.exit(1)
           print(f"canary OK: {len(rows)} profiles (1 correctly not found), "
-                f"{len(spot)} Spotlight rows, both runs complete")
+                f"{len(spot)} Spotlight rows, 1 profile through a browser, "
+                f"all runs complete")
           PY
 
       - uses: actions/upload-artifact@v4
@@ -176,17 +208,26 @@ jobs:
             canary_profiles.*
             canary_spotlight.*
             canary_profiles_profile_*.json
+            canary_browser.*
           retention-days: 7
 
   scraper-api:
-    name: the paid path (skips without a key)
+    name: the paid path (fails without TWOCAPTCHA_KEY)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       # `secrets` is not available in a job-level `if`, so presence is
-      # tested through job env and read in each step's `if` (CLAUDE.md §11).
+      # tested through job env and read in each step's `if`.
       HAS_KEY: ${{ secrets.TWOCAPTCHA_KEY != '' }}
     steps:
+      - name: Require the secret this job tests
+        if: env.HAS_KEY != 'true'
+        run: |
+          echo "::error::TWOCAPTCHA_KEY is not set as a repository secret,"\
+               "so the Scraper API path was NOT tested. Add it with"\
+               "gh secret set TWOCAPTCHA_KEY --repo 2scraper/snapchat-scraper"
+          exit 1
+
       - uses: actions/checkout@v4
         if: env.HAS_KEY == 'true'
       - uses: actions/setup-python@v5
@@ -204,15 +245,24 @@ jobs:
         if: env.HAS_KEY == 'true'
         env:
           # Through the ENVIRONMENT, never a --flag: a secret in argv is
-          # readable by anything that can run `ps` (CLAUDE.md §3, §11).
+          # readable by anything that can run `ps`.
           TWOCAPTCHA_KEY: ${{ secrets.TWOCAPTCHA_KEY }}
         run: |
-          python scraper_api_client.py --url nasa --mode spotlight --out canary_api
-
-      - name: Say why this was skipped
-        if: env.HAS_KEY != 'true'
-        run: |
-          echo "::notice::Skipped: TWOCAPTCHA_KEY is not set. This path is"\
-               "the only one in this repo that costs money, and the repo's"\
-               "own README says it is unnecessary on this site — so a"\
-               "missing key is an expected state, not a failure."
+          set +e
+          python scraper_api_client.py --url nasa --mode spotlight \
+            --format json --out canary_api
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::Scraper API run exited $rc"; exit 1
+          fi
+          python - <<'PY'
+          import json, sys
+          rows = json.load(open("canary_api.json"))
+          bad = [r for r in rows if not isinstance(r.get("view_count"), int)]
+          if not rows or bad:
+              print(f"::error::Scraper API: {len(rows)} rows, "
+                    f"{len(bad)} without a view_count")
+              sys.exit(1)
+          print(f"Scraper API OK: {len(rows)} Spotlight rows")
+          PY

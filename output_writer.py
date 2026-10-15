@@ -16,8 +16,8 @@ Three modes, three row shapes, ONE fetch
 All three read the same page — `https://www.snapchat.com/@handle` — so a
 mode is a choice of which part of one server-rendered payload to emit, not
 a different request. Every class keeps the family prefix
-`source, scraped_at, url, sku, title` byte-identical and first
-(CLAUDE.md §9), `mode` is recorded in the sidecar because the repo no
+`source, scraped_at, url, sku, title` byte-identical and first;
+`mode` is recorded in the sidecar because the repo no
 longer implies it, and `diff_runs.py` refuses a pair whose modes differ.
 
 `sku` is the id in every schema, so one column name works across the
@@ -38,14 +38,14 @@ Measured 2026-09-24 on real captures:
   JSON-LD `interactionStatistic` that is an EMPTY list rather than a
   counter of 0). Written through, that zero drags every average a consumer
   computes. It is null here, and the page's own JSON-LD is what tells the
-  two apart (CLAUDE.md §21: where the site states it, use its signal).
+  two apart (where the site states it, use its signal).
 * **A Spotlight slot can be EMPTY.** A profile page lists its Spotlight
   videos as two parallel arrays, and on @kyliejenner 14 of the 25 slots in
   both were placeholders — `viewCount: "0"`, `uploadDateMs: "0"`, no id —
   at the same indices, stable over three refetches. Read naively, that is
   fourteen videos with no views. They are not emitted, `position` counts
-  the rows that ARE (CLAUDE.md §24's rule from a sibling whose payload
-  index shifted every position), and the sidecar counts the holes.
+  the rows that ARE (a sibling's payload index once
+  shifted every position), and the sidecar counts the holes.
 
 Everything below the dataclasses is row-class-agnostic: pass `row_cls` so
 an empty CSV still gets the right header for the mode that produced it.
@@ -83,8 +83,7 @@ class Profile:
     """One Snapchat account.
 
     The family prefix — `source`, `scraped_at`, `url`, `sku`, `title` — is
-    byte-identical and in this order across every repo in the family
-    (CLAUDE.md §9).
+    byte-identical and in this order across every repo in the family.
 
     `sku` is the account's `businessProfileId` when it has a PUBLIC profile.
     Snapchat lets a user change their username, so a diff joined on the
@@ -157,7 +156,7 @@ class Profile:
     subcategory: Optional[str] = None
     # Snapchat's badge value, passed through: 1 on every verified-looking
     # account measured and 0 on @khaby00, but Snapchat does not document
-    # the enum, so it is not renamed to `verified` (CLAUDE.md §8).
+    # the enum, so it is not renamed to `verified`.
     badge: Optional[int] = None
     profile_picture_url: Optional[str] = None
     hero_image_url: Optional[str] = None
@@ -209,7 +208,7 @@ class Spotlight:
     #
     # `keywords` was here and is GONE: `videoMetadata.keywords` was an empty
     # list on all 36 Spotlight rows across the fixtures measured 2026-09-24.
-    # CLAUDE.md §9 — a column empty on every row should not exist, and the
+    # A column empty on every row should not exist, and the
     # measurement is written down so it can come back with a better one.
     duration_s: Optional[float] = None
     width: Optional[int] = None
@@ -257,7 +256,7 @@ class Snap:
     position: Optional[int] = None
 
 
-# The family name. CLAUDE.md §9 makes `Product` the schema every repo in
+# The family name. `Product` is the schema every repo in
 # this family exports, and several shared checks import it by that name;
 # keeping the alias means the descriptive name can be used in this repo's
 # own code without reddening a check that was written against the family.

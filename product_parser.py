@@ -1,7 +1,7 @@
 """product_parser.py — this IS the site.
 
 Everything Snapchat-shaped that is not one of the handful of named
-constants in the engines lives here (CLAUDE.md §1). The generic reading of
+constants in the engines lives here. The generic reading of
 Snapchat's payload — `__NEXT_DATA__`, JSON-LD, protobuf wrappers — lives
 one file over, in `snapchat_payload.py`.
 
@@ -32,7 +32,7 @@ Three answers, and none of them is a refusal
 
 The first two are both CONTENT: the account exists, and the page says what
 Snapchat shows of it. The third is a real answer too — EXIT_NO_PRODUCTS,
-never EXIT_BLOCKED — and CLAUDE.md §8's rule is why it matters: a scraper
+never EXIT_BLOCKED — and that is why it matters: a scraper
 that reports it as blocked sends a user rotating proxies over an account
 that is not there.
 """
@@ -76,8 +76,8 @@ ACCEPTED_HOSTS = ("www.snapchat.com", "snapchat.com", "story.snapchat.com",
                   "m.snapchat.com")
 
 # Hosts that ARE Snapchat and are not this repo's job. Refusing them with
-# "is not on a Snapchat host" would be false, and CLAUDE.md §5 is explicit
-# that a false refusal sends the reader looking for a typo that is not
+# "is not on a Snapchat host" would be false, and
+# a false refusal sends the reader looking for a typo that is not
 # there.
 SIBLING_HOSTS = {
     "map.snapchat.com": "Snap Map, which this repo does not implement",
@@ -104,7 +104,7 @@ MODES = ("profile", "spotlight", "story")
 
 class NotAProfileUrl(ValueError):
     """The URL is a Snapchat URL, but not a profile one — refused WITH THE
-    REASON (CLAUDE.md §5)."""
+    REASON."""
 
 
 def normalise_handle(raw: str) -> str:
@@ -181,7 +181,7 @@ def profile_url(handle: str, locale: Optional[str] = None) -> str:
 def page_url(url: str, page: int) -> str:
     """There is no page 2 of a profile — and saying so is the point.
 
-    CLAUDE.md §18 wants "is this listing addressable?" asked per URL before
+    "Is this listing addressable?" is asked per URL before
     any page URL is planned. On a Snapchat profile the page states one
     account, and the cursors it carries for more Spotlight and highlights
     are followed through Snapchat's own protobuf API, which this repo does
@@ -218,7 +218,7 @@ def _epoch_to_iso(raw: Any, scale: int = 1) -> Optional[str]:
 
     Zero is "not set" — every empty Spotlight slot carries
     `uploadDateMs: "0"` — so it becomes null, never 1970-01-01
-    (CLAUDE.md §21: a numeric field whose absent state is 0 needs the
+    (a numeric field whose absent state is 0 needs the
     absence recovered).
     """
     n = to_int(raw)
@@ -422,7 +422,7 @@ def _profile_row(props, html, url, scraped_at, row_cls, handle):
         # page carries no JSON-LD at all there is nothing to tell the two
         # apart with, and a zero on a PUBLIC profile is overwhelmingly the
         # hidden case, so it is still null: a guess presented as a fact is
-        # worse than a missing value (CLAUDE.md §8).
+        # worse than a missing value.
         subscribers = None
 
     pairs, _ = _filled_spotlights(props)
@@ -606,7 +606,7 @@ def parse_page(html: Any, url: str, scraped_at: str, row_cls: Any,
 
     Raises PayloadError for a page that is not a profile page, or whose
     payload does not parse — which is OUR problem and must never be
-    reported as an empty account (CLAUDE.md §20). A profile with nothing
+    reported as an empty account. A profile with nothing
     of the kind asked for (an ordinary account in `--mode spotlight`, a
     creator with no live story) returns no rows and says why in the
     diagnostics: that is the site's answer, not a failure.
@@ -670,7 +670,7 @@ STATE_USER_UNAVAILABLE = "user_not_found"
 STATE_CHALLENGE = "challenge"
 STATE_ERROR = "error"
 # A page the site plainly served that this parser could not read. OUR bug,
-# named so it cannot be reported as "no such account" (CLAUDE.md §20).
+# named so it cannot be reported as "no such account".
 STATE_PARSE_ERROR = "parse_error"
 STATE_UNKNOWN = "unknown"
 
@@ -680,7 +680,7 @@ def _coerce_status(status: Any) -> Optional[int]:
 
     The 2Captcha Scraper API returns the upstream status as a STRING, and a
     sibling's first live run of that path crashed on `'>=' between str and
-    int` (CLAUDE.md §16: run every path a credential gates).
+    int` (run every path a credential gates).
     """
     if status is None or isinstance(status, bool):
         return None
@@ -697,13 +697,12 @@ def detect_page_state(html: Any, status: Optional[int] = None,
     """Name what Snapchat answered with.
 
     The argument ORDER is the contract: every caller writes
-    `detect_page_state(html, status, url)`. CLAUDE.md §17 records a repo
-    whose engines passed `status` in the wrong place and crashed on their
+    `detect_page_state(html, status, url)`. A sibling repo's
+    engines passed `status` in the wrong place and crashed on their
     FIRST fetch; `smoke_test.py` binds every call site against this
     signature for that reason.
 
-    The ORDER OF THE CHECKS is by how much each signal PROVES (CLAUDE.md
-    §17): the site's own payload saying what it rendered outranks a
+    The ORDER OF THE CHECKS is by how much each signal PROVES: the site's own payload saying what it rendered outranks a
     status, and any threshold comes last.
     """
     status = _coerce_status(status)

@@ -4,7 +4,7 @@ Shared by all three browser engines and the HTTP path so they cannot
 quietly disagree about whether a response is worth retrying, worth paying
 a solver for, or worth reporting as a block. Three copies of that triage
 drift, and the drift is silent: one engine reporting exit 3 where its twin
-reports exit 0 on the same account (CLAUDE.md §1).
+reports exit 0 on the same account.
 
 Policy and pure algorithms only. No JavaScript crosses this boundary —
 Selenium's `execute_script` takes a function BODY with an explicit
@@ -29,6 +29,7 @@ has paid for that lesson on every other site.
 
 from __future__ import annotations
 
+import argparse
 import time
 from typing import Callable, Optional
 
@@ -48,7 +49,7 @@ from product_parser import (STATE_CHALLENGE, STATE_CONTENT, STATE_ERROR,
 #
 # `script#__NEXT_DATA__` is the framework's own element id — the most
 # durable anchor a Next.js page has — and `body` is the floor. A profile
-# holds exactly one account, so the >1 CLAUDE.md §5 requires of a LISTING
+# holds exactly one account, so the >1 required of a LISTING
 # is not a thing that can be waited for here.
 READY_SELECTOR = "script#__NEXT_DATA__, body"
 MIN_CARD_MATCHES = 1
@@ -75,7 +76,7 @@ def wait_for_count(count: Callable[[str], int], selector: str, minimum: int,
 
     The caller passes a counting primitive rather than a snippet, and the
     primitive must be a protocol call — `querySelectorAll` through the
-    driver — never an evaluated STRING. CLAUDE.md §18: a site whose
+    driver — never an evaluated STRING. A site whose
     Content-Security-Policy lacks `unsafe-eval` kills
     `wait_for_function`-style string evaluation — and Snapchat's is such a
     site: measured 2026-09-24, its profile pages' `script-src` carries
@@ -106,8 +107,8 @@ def classify(html, status: Optional[int] = None, url: str = "",
     """Name what Snapchat answered with. See product_parser.detect_page_state.
 
     The argument ORDER is the contract: every caller writes
-    `classify(html, status, url)`. CLAUDE.md §17 records a sibling repo
-    whose two engines called `classify(html, url=...)` against a callee
+    `classify(html, status, url)`. A sibling repo had two engines
+    calling `classify(html, url=...)` against a callee
     taking `status` second, and both crashed on their FIRST fetch —
     invisible to import, `--help`, `compileall` and four hundred green
     offline assertions, because none of those calls a function the way a
@@ -136,8 +137,8 @@ STATE_POLICY = {
     # A captcha widget's own loader on the page. `solve` is True: the
     # loaders this state keys on are widgets captcha_solver.py handles, and
     # Snapchat's own CSP permits captcha scripts — a captcha is configured
-    # here even though none has been rendered to this repo (CLAUDE.md §18:
-    # "no challenge rendered" is not "no captcha configured").
+    # here even though none has been rendered to this repo ("no challenge rendered" is
+    # not "no captcha configured").
     STATE_CHALLENGE: {"retry": True, "solve": True, "blocked": True,
                       "parse": False},
     # An HTTP error that is not a recognised refusal — a 500, a gateway's
@@ -145,7 +146,7 @@ STATE_POLICY = {
     STATE_ERROR: {"retry": True, "solve": False, "blocked": False,
                   "parse": False},
     # A page the site plainly served that this parser failed to read. OUR
-    # bug (CLAUDE.md §20). One retry in case a response was truncated.
+    # bug. One retry in case a response was truncated.
     STATE_PARSE_ERROR: {"retry": True, "solve": False, "blocked": False,
                         "parse": False},
     # Neither the site nor a recognised refusal — a proxy's own response,
@@ -173,7 +174,7 @@ def should_parse(state: str) -> bool:
 
 # Whether a blocked page is worth re-fetching at all. CONSULTED by the
 # engines rather than merely documented — setting it False really does stop
-# the retry loop. (CLAUDE.md §17: a policy constant nothing reads is the
+# the retry loop. (a policy constant nothing reads is the
 # same defect as dead code, and this family shipped one for months.)
 RETRY_ON_BLOCKED = True
 
@@ -186,7 +187,7 @@ BLOCK_RETRIES_WITHOUT_POOL = 1
 # The solve budget
 # ---------------------------------------------------------------------------
 #
-# One paid solve per page. CLAUDE.md §23 records that this constant has
+# One paid solve per page. This constant has
 # read like an enforced limit in every repo in this family and was not one:
 # every engine calls the captcha handler TWICE per attempt — once before
 # the response is classified, so a challenge is cleared before anything is
@@ -233,7 +234,7 @@ class SolveBudget:
 def pagination_is_addressable(url: str = "", mode: str = "profile") -> bool:
     """Whether page N of this run can be fetched without walking to it.
 
-    CLAUDE.md §18 says to ask this per ROUTE rather than per site. On this
+    Ask this per ROUTE rather than per site. On this
     route the honest answer is that the question does not arise: a
     Snapchat profile has exactly ONE page. There is no page 2 to address, walk to,
     or construct.
@@ -272,7 +273,7 @@ def concurrency_limit(cdp_endpoint: Optional[str]) -> Optional[int]:
 
     The Scraping Browser API allows ONE live connection per profile, so N
     workers sharing a `pid` collide with `profile_locked`. Several `pid`s,
-    one run each, is the way to parallelise that path (CLAUDE.md §7).
+    one run each, is the way to parallelise that path.
     """
     return 1 if cdp_endpoint else None
 
@@ -291,7 +292,7 @@ def concurrency_for_mode(mode: str, concurrency: int) -> int:
 def sample_share(collected: int, total: Optional[int]) -> Optional[float]:
     """What fraction of the accounts asked for a run actually holds.
 
-    CLAUDE.md §21: "complete" and "exhaustive" are different words, and a
+    "Complete" and "exhaustive" are different words, and a
     sidecar that says only the first is lying by omission. The distinction
     is milder on this route than on a capped search listing — a profile run
     asks for N accounts and either gets them or does not — but the number
@@ -302,3 +303,30 @@ def sample_share(collected: int, total: Optional[int]) -> Optional[float]:
     if not total or total <= 0 or collected < 0:
         return None
     return round(100.0 * collected / total, 4)
+
+
+# ---------------------------------------------------------------------------
+# CLI value validation, shared by every engine and the Scraper API client.
+# `--retries` counts EXTRA attempts here (`max(1, retries + 1)`), so 0 is a
+# legal value that still fetches once; a negative count or delay is a typo.
+# ---------------------------------------------------------------------------
+def non_negative_int(value: str) -> int:
+    """argparse `type=`: an integer that is 0 or more."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("expected an integer, got %r" % value)
+    if n < 0:
+        raise argparse.ArgumentTypeError("must be 0 or more, got %d" % n)
+    return n
+
+
+def non_negative_float(value: str) -> float:
+    """argparse `type=`: a number of seconds that is 0 or more."""
+    try:
+        x = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("expected a number, got %r" % value)
+    if not x >= 0:                                    # also rejects NaN
+        raise argparse.ArgumentTypeError("must be 0 or more, got %s" % value)
+    return x
