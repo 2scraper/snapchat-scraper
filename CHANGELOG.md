@@ -10,6 +10,8 @@ in one, the note leads with it.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-15
+
 > **Negative counts and delays are now usage errors.** `--retries`,
 > `--proxy-block-retries`, `--delay` and `--retry-delay` (in all three
 > engines, and `--retries` / `--retry-delay` in `scraper_api_client.py`)
