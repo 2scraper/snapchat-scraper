@@ -95,7 +95,7 @@ The second applies the credential rules CI enforces to **every blob that has
 ever existed**, not just the working tree. A commit on top cannot reach what a
 published tag already holds.
 
-The canary is **not** gated on a secret: a profile page needs none, so it runs a real scrape daily from a bare GitHub runner and is expected GREEN. If Snapchat ever puts the page behind a challenge, the badge goes red the next morning.
+The canary is **not** gated on a secret: a profile page needs none, so it runs a real scrape weekly (Mondays) from a bare GitHub runner and is expected GREEN. If Snapchat ever puts the page behind a challenge, the badge goes red on the next weekly run.
 
 ## Pull requests
 
