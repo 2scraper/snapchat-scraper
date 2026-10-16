@@ -242,7 +242,7 @@ Scraping Browser's `country-` segment did what you asked. Also:
   Snapchat's own page state, not a published contract, so a page can
   render and still have moved a field; this is how that shows up instead
   of as silent nulls. Empty on every page this repo was tested against,
-  and the daily canary fails if it is not.
+  and the weekly canary fails if it is not.
 * `csv_cells_escaped` — CSV cells that began with `=`, `+`, `-`, `@` or a
   control character and were prefixed with `'` so a spreadsheet reads
   them as text (bios and captions are written by account owners). JSON
@@ -288,25 +288,25 @@ Variables: `TWOCAPTCHA_KEY`, `SNAPCHAT_CDP_ENDPOINT`, `SNAPCHAT_PROXY`,
 
 ---
 
-## The daily canary
+## The weekly canary
 
 `.github/workflows/canary.yml` runs real scrapes against live Snapchat
-every morning **from a bare GitHub runner with no secrets** — four profiles
+every Monday **from a bare GitHub runner with no secrets** — four profiles
 covering a public organisation, a public person, an ordinary account and a
 username that does not exist, a Spotlight run, and one profile through a
 local browser (`--transport browser`) so the fallback transport is tested
 too. None of that needs a secret.
 
-A second job runs the paid Scraper API path, weekly (Mondays) and on a
-manual dispatch because each run bills, and needs a `TWOCAPTCHA_KEY`
+A second job runs the paid Scraper API path on the same schedule and on a
+manual dispatch, and needs a `TWOCAPTCHA_KEY`
 repository secret. Without it that job fails with an error naming the
 secret rather than skipping green, because a skipped job is not a tested
 path.
 
 That is not a convenience. The central claim of this README is "you need no
 key, no proxy and no account", and an ungated scheduled canary is that
-sentence under test every morning. If Snapchat ever puts its profile pages
-behind a challenge, the badge goes red the next day and the claim is
+sentence under test every Monday. If Snapchat ever puts its profile pages
+behind a challenge, the badge goes red on the next weekly run and the claim is
 retested without anyone having to remember to.
 
 ---

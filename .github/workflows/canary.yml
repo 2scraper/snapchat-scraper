@@ -12,9 +12,9 @@
 # profile page answers a bare datacentre address with no key, no proxy and
 # no account — measured 2026-09-24, served to plain curl and to a browser
 # alike. A GitHub runner is a bare datacentre address in a different
-# network. So this job runs a real scrape every morning and is EXPECTED to
+# network. So this job runs a real scrape every Monday and is EXPECTED to
 # be green, and if Snapchat ever puts the page behind a challenge the badge
-# goes red the next day and the claim is retested without anyone having to
+# goes red on the next weekly run and the claim is retested without anyone having to
 # remember to.
 #
 # The browser transport is exercised too (local Chromium, free), so the
@@ -27,9 +27,6 @@ name: canary
 
 on:
   schedule:
-    - cron: "41 6 * * *"
-    # Mondays only: the paid job (scraper-api) runs on this
-    # schedule (each run bills); the free jobs keep the daily one above.
     - cron: "41 6 * * 1"
   workflow_dispatch:
 
@@ -216,8 +213,6 @@ jobs:
 
   scraper-api:
     name: the paid path (fails without TWOCAPTCHA_KEY)
-    # Paid path: weekly schedule or a manual dispatch only.
-    if: github.event_name != 'schedule' || github.event.schedule == '41 6 * * 1'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
