@@ -28,6 +28,9 @@ name: canary
 on:
   schedule:
     - cron: "41 6 * * *"
+    # Mondays only: the paid job (scraper-api) runs on this
+    # schedule (each run bills); the free jobs keep the daily one above.
+    - cron: "41 6 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -213,6 +216,8 @@ jobs:
 
   scraper-api:
     name: the paid path (fails without TWOCAPTCHA_KEY)
+    # Paid path: weekly schedule or a manual dispatch only.
+    if: github.event_name != 'schedule' || github.event.schedule == '41 6 * * 1'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

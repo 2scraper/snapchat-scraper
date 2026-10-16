@@ -10,6 +10,11 @@ in one, the note leads with it.
 
 ## [Unreleased]
 
+### Changed
+
+- CI only: the canary's paid `scraper-api` job now runs weekly (Mondays 06:41
+  UTC) and on a manual dispatch; the free `profiles` job still runs daily.
+
 ## [0.3.0] — 2026-10-15
 
 > **Negative counts and delays are now usage errors.** `--retries`,

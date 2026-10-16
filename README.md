@@ -297,7 +297,8 @@ username that does not exist, a Spotlight run, and one profile through a
 local browser (`--transport browser`) so the fallback transport is tested
 too. None of that needs a secret.
 
-A second job runs the paid Scraper API path and needs a `TWOCAPTCHA_KEY`
+A second job runs the paid Scraper API path, weekly (Mondays) and on a
+manual dispatch because each run bills, and needs a `TWOCAPTCHA_KEY`
 repository secret. Without it that job fails with an error naming the
 secret rather than skipping green, because a skipped job is not a tested
 path.
