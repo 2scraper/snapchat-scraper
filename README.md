@@ -1,4 +1,4 @@
-# snapchat-scraper
+# Snapchat Scraper — Public Profiles, Spotlight and Stories in Python
 
 [![release](https://img.shields.io/github/v/release/2scraper/snapchat-scraper?sort=semver)](https://github.com/2scraper/snapchat-scraper/releases)
 [![tests](https://github.com/2scraper/snapchat-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/2scraper/snapchat-scraper/actions/workflows/tests.yml)
@@ -7,6 +7,8 @@
 [![licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 [![engines](https://img.shields.io/badge/engines-Playwright%20%7C%20Selenium%20%7C%20pyppeteer%20%7C%20CDP-informational)](#engines-and-what-each-one-costs-you)
 [![runs without an account](https://img.shields.io/badge/runs%20without-an%20account-brightgreen)](#you-do-not-need-a-key-a-proxy-or-an-account)
+
+**Snapchat scraper** — an open-source (MIT) Python tool that reads public snapchat.com profile pages and writes subscriber counts and bios, Spotlight videos with view, share and comment counts, and story and highlight snaps with media URLs to JSON or CSV. Measured 2026-09-24 from a bare datacentre address with no credentials of any kind, profile pages answered HTTP 200, 30 of 30 requests in a row, so it needs no key, proxy or account. Use it to build a dataset of public accounts, or compare two runs with `diff_runs.py` to watch Spotlight counts over time.
 
 Scrape public Snapchat profiles — subscriber count, bio, category, website,
 ids — their **Spotlight** videos with view, share, comment and boost
@@ -310,6 +312,23 @@ behind a challenge, the badge goes red on the next weekly run and the claim is
 retested without anyone having to remember to.
 
 ---
+
+## Guides
+
+- [How to run the 2scraper scrapers: setup, proxies, exit codes and access modes](https://2captcha.com/h/how-to-run-2scraper-open-source-scrapers) — installation, `.env`, `.meta.json` for the whole family.
+
+## Related scrapers
+
+Same CLI conventions, same output contract (one row per item, JSON or CSV, a `.meta.json` sidecar and shared exit codes):
+
+- [TikTok Ad Library scraper](https://github.com/2scraper/tiktok-ads-scraper) — Ads from TikTok's EU Ad Library
+- [TikTok Profile scraper](https://github.com/2scraper/tiktok-profile-scraper) — Exact follower, like and video counts, bio, verification…
+- [TikTok Video scraper](https://github.com/2scraper/tiktok-video-scraper) — TikTok videos with exact engagement, sound, hashtags…
+- [Weibo scraper](https://github.com/2scraper/weibo-scraper) — Hot feed, account timelines and post comments…
+- [YouTube scraper](https://github.com/2scraper/youtube-scraper) — Comment threads, replies, video metadata and search
+- [Meta Ad Library scraper](https://github.com/2scraper/facebook-ads-scraper) — Every ad of a keyword or advertiser search in Meta's Ad…
+
+All scrapers: [github.com/2scraper](https://github.com/2scraper) · Need another site? [Open a request](https://github.com/2scraper/.github/issues/new?title=%5BScraper%20request%5D%20)
 
 ## Contributing, and what the checks are for
 
