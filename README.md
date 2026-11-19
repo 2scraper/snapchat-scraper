@@ -321,12 +321,12 @@ retested without anyone having to remember to.
 
 Same CLI conventions, same output contract (one row per item, JSON or CSV, a `.meta.json` sidecar and shared exit codes):
 
-- [TikTok Ad Library scraper](https://github.com/2scraper/tiktok-ads-scraper) — Ads from TikTok's EU Ad Library
+- [TikTok Ads scraper](https://github.com/2scraper/tiktok-ads-scraper) — EU and EEA ads from the TikTok Ad Library
 - [TikTok Profile scraper](https://github.com/2scraper/tiktok-profile-scraper) — Exact follower, like and video counts, bio, verification…
 - [TikTok Video scraper](https://github.com/2scraper/tiktok-video-scraper) — TikTok videos with exact engagement, sound, hashtags…
 - [Weibo scraper](https://github.com/2scraper/weibo-scraper) — Hot feed, account timelines and post comments…
 - [YouTube scraper](https://github.com/2scraper/youtube-scraper) — Comment threads, replies, video metadata and search
-- [Meta Ad Library scraper](https://github.com/2scraper/facebook-ads-scraper) — Every ad of a keyword or advertiser search in Meta's Ad…
+- [Facebook Ads scraper](https://github.com/2scraper/facebook-ads-scraper) — Ads from Meta Ad Library keyword and advertiser searches
 
 All scrapers: [github.com/2scraper](https://github.com/2scraper) · Need another site? [Open a request](https://github.com/2scraper/.github/issues/new?title=%5BScraper%20request%5D%20)
 
